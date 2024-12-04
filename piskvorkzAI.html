@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Piškvorky s AI</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="header">
+    <button id="menu-btn">☰</button>
+    <button id="start-btn">Spustiť</button>
+  </div>
+
+  <div id="game-board" class="hidden">
+    <div class="grid">
+      <div class="cell" data-index="0"></div>
+      <div class="cell" data-index="1"></div>
+      <div class="cell" data-index="2"></div>
+      <div class="cell" data-index="3"></div>
+      <div class="cell" data-index="4"></div>
+      <div class="cell" data-index="5"></div>
+      <div class="cell" data-index="6"></div>
+      <div class="cell" data-index="7"></div>
+      <div class="cell" data-index="8"></div>
+    </div>
+  </div>
+
+  <div id="history" class="hidden">
+    <h2>História hier</h2>
+    <ul id="history-list"></ul>
+  </div>
+
+  <script src="script.js"></script>
+<style>* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #3b82f6, #ec4899, #8b5cf6); /* Modro-ružovo-fialové pozadie */
+  background-size: 300% 300%;
+  animation: gradientAnimation 6s ease infinite;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+@keyframes gradientAnimation {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  width: 90%;
+  margin-bottom: 20px;
+}
+
+#menu-btn {
+  background-color: red;
+  color: white;
+  font-size: 24px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+#start-btn {
+  background-color: #3b82f6;
+  color: white;
+  font-size: 20px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s ease;
+}
+
+#start-btn:hover {
+  background-color: #2563eb;
+}
+
+.hidden {
+  display: none;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 100px);
+  grid-template-rows: repeat(3, 100px);
+  gap: 10px;
+}
+
+.cell {
+  width: 100px;
+  height: 100px;
+  background-color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  font-weight: bold;
+  border: 2px solid #ccc;
+  cursor: pointer;
+}
+
+.cell:hover {
+  background-color: #f3f4f6;
+}
+
+#history {
+  position: absolute;
+  top: 20%;
+  left: 10%;
+  background-color: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  max-width: 300px;
+  z-index: 1000;
+}
+</style>
+<script>document.addEventListener('DOMContentLoaded', () => {
+  const startBtn = document.getElementById('start-btn');
+  const menuBtn = document.getElementById('menu-btn');
+  const gameBoard = document.getElementById('game-board');
+  const historyDiv = document.getElementById('history');
+  const historyList = document.getElementById('history-list');
+  const cells = document.querySelectorAll('.cell');
+  let currentPlayer = 'X';
+  let board = Array(9).fill(null);
+  let history = [];
+
+  // Start the game
+  startBtn.addEventListener('click', () => {
+    gameBoard.classList.remove('hidden');
+    startBtn.classList.add('hidden');
+  });
+
+  // Show or hide history
+  menuBtn.addEventListener('click', () => {
+    historyDiv.classList.toggle('hidden');
+  });
+
+  // Handle player (X) clicks
+  cells.forEach((cell, index) => {
+    cell.addEventListener('click', () => {
+      if (board[index] === null && currentPlayer === 'X') {
+        board[index] = 'X';
+        cell.textContent = 'X';
+        if (checkWin('X')) {
+          addToHistory('X');
+          alert('X vyhral!');
+          resetGame();
+        } else if (board.every((cell) => cell !== null)) {
+          alert('Remíza!');
+          addToHistory('Remíza');
+          resetGame();
+        } else {
+          currentPlayer = 'O';
+          setTimeout(aiTurn, 900); // AI čaká 3 sekundy pred ťahom
+        }
+      }
+    });
+  });
+
+  // AI (O) turn
+  function aiTurn() {
+    const bestMove = getBestMove(board, 'O');
+    if (bestMove !== null) {
+      board[bestMove] = 'O';
+      cells[bestMove].textContent = 'O';
+      if (checkWin('O')) {
+        addToHistory('O');
+        alert('O vyhral!');
+        resetGame();
+      } else if (board.every((cell) => cell !== null)) {
+        alert('Remíza!');
+        addToHistory('Remíza');
+        resetGame();
+      } else {
+        currentPlayer = 'X';
+      }
+    }
+  }
+
+  // Minimax algorithm to find the best move
+  function getBestMove(board, player) {
+    const opponent = player === 'X' ? 'O' : 'X';
+    if (checkWin('X')) return -1; // X has won
+    if (checkWin('O')) return 1; // O has won
+    if (board.every((cell) => cell !== null)) return 0; // Draw
+
+    let bestScore = player === 'O' ? -Infinity : Infinity;
+    let bestMove = null;
+
+    board.forEach((_, index) => {
+      if (board[index] === null) {
+        board[index] = player;
+        const score = getBestMove(board, opponent);
+        board[index] = null; // Undo the move
+
+        if (player === 'O') {
+          if (score > bestScore) {
+            bestScore = score;
+            bestMove = index;
+          }
+        } else {
+          if (score < bestScore) {
+            bestScore = score;
+            bestMove = index;
+          }
+        }
+      }
+    });
+
+    return player === 'O' ? bestMove : bestScore;
+  }
+
+  // Check for a win
+  function checkWin(player) {
+    const winPatterns = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6],
+    ];
+
+    return winPatterns.some((pattern) =>
+      pattern.every((index) => board[index] === player)
+    );
+  }
+
+  // Add result to history
+  function addToHistory(result) {
+    history.push(result);
+    const historyItem = document.createElement('li');
+    historyItem.textContent = `Výsledok: ${result}`;
+    historyList.appendChild(historyItem);
+  }
+
+  // Reset the game
+  function resetGame() {
+    board = Array(9).fill(null);
+    cells.forEach((cell) => (cell.textContent = ''));
+    currentPlayer = 'X';
+    gameBoard.classList.add('hidden');
+    startBtn.classList.remove('hidden');
+  }
+});
+</script>
+</body>
+</html>
